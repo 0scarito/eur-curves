@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eur-curves"
+version = "0.1.0"
+description = "Living EUR yield-curve lab on the ECB euro-area AAA Svensson curve"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Oscar Caudreliez" }]
+keywords = ["yield-curve", "svensson", "ecb", "fixed-income", "term-structure"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+    "numpy>=1.23",
+    "pandas>=1.5",
+    "requests>=2.28",
+    "matplotlib>=3.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.4"]
+
+[project.urls]
+Repository = "https://github.com/0scarito/eur-curves"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eur_curves"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "NPY", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "network: hits the live ECB Data Portal (skipped unless RUN_NETWORK_TESTS=1)",
+]

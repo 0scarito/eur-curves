@@ -1,0 +1,30 @@
+name: refresh
+
+on:
+  schedule:
+    # ECB publishes the AAA curve around 12:00 CET on TARGET business days.
+    - cron: "30 13 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e .
+      - name: Refresh curve snapshot
+        run: python scripts/refresh.py
+      - name: Commit if changed
+        run: |
+          git config user.name "eur-curves bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data charts
+          git diff --cached --quiet || git commit -m "refresh: $(date -u +%F) curve snapshot"
+          git push
