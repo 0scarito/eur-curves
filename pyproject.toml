@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eur-curves"
-version = "0.1.0"
+version = "0.2.0"
 description = "Living EUR yield-curve lab on the ECB euro-area AAA Svensson curve"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +25,7 @@ dependencies = [
     "pandas>=1.5",
     "requests>=2.28",
     "matplotlib>=3.6",
+    "scipy>=1.10",
 ]
 
 [project.optional-dependencies]

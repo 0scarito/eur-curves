@@ -53,8 +53,58 @@ rounding noise, since the ECB publishes values to 10 decimal places.
 - **`eur_curves.ecb`** — client for the [ECB Data Portal](https://data.ecb.europa.eu/)
   (dataset `YC`, no API key needed): daily parameters, published spot rates, and their histories,
   parsed into a `CurveParams` dataclass / pandas frames.
-- **`eur_curves.plots`** — the two charts above.
+- **`eur_curves.bonds`** — fixed-income analytics off a `CurveParams`: bullet-bond pricing,
+  effective-annual yield to maturity, DV01 (an exact parallel curve shift), Macaulay / modified
+  duration, and convexity.
+- **`eur_curves.plots`** — the charts above (curve, history, and par-bond-ladder risk).
 - **`scripts/refresh.py`** — fetch, validate, snapshot (`data/latest.json`), chart. Run by cron.
+
+## Fixed-income analytics
+
+`eur_curves.bonds` prices bullet fixed-coupon bonds directly off a day's Svensson curve and
+derives the usual risk measures. Pricing discounts each cashflow with the curve's
+continuous-compounding discount factor. Yield to maturity is an **effective annual** rate
+solving `sum(cf * (1 + y) ** -t) == price`, the convention that makes a par bond's YTM equal its
+coupon and `modified = macaulay / (1 + y)` exact. DV01 is an **exact parallel shift** of the
+curve: `beta0` enters `y(t)` additively, so bumping it by ±1 bp lifts every spot rate by exactly
+1 bp with no re-fitting.
+
+![Par-bond ladder risk](charts/bonds.png)
+
+```python
+import eur_curves as ec
+
+params = ec.fetch_params()                            # latest ECB Svensson curve
+coupon = ec.par_coupon(params, 10.0)                  # coupon that prices a 10Y to par
+bond   = ec.Bond(face=100.0, annual_coupon_rate=coupon, maturity_years=10.0)
+
+ec.price(bond, params)                                # 100.0 (struck at par)
+ec.yield_to_maturity(bond, ec.price(bond, params))    # == coupon for a par bond
+ec.dv01(bond, params)                                 # price change per 1 bp parallel shift
+ec.modified_duration(bond, params)                    # macaulay / (1 + y)
+ec.convexity(bond, params)
+```
+
+Worked example on the committed 2026-07-10 curve (`face = 100`, annual coupons) — the par
+ladder plotted above:
+
+```
+ mat  coupon %      DV01   mod dur  convexity
+   1    2.5471   0.01000   0.97516     1.0000
+   2    2.6323   0.01974   1.92369     3.9230
+   3    2.6715   0.02923   2.84649     8.6648
+   5    2.7750   0.04737   4.60863    23.1628
+   7    2.9142   0.06430   6.24743    43.5203
+  10    3.1203   0.08728   8.46421    82.8018
+  15    3.3694   0.11956  11.56590   164.2009
+  20    3.5040   0.14568  14.07433   257.0636
+  30    3.5704   0.18600  17.95920   458.7455
+```
+
+The 10Y par bond: coupon **3.1203%**, DV01 **0.0873** per 100 face, Macaulay duration
+**8.728y**, modified duration **8.464y** (= 8.728 / 1.031203), convexity **82.80**. A par bond's
+effective-annual YTM comes back exactly equal to its coupon, and the 1Y point is a single
+cashflow so its convexity is exactly `1.0`.
 
 ## Install
 
@@ -94,7 +144,7 @@ Tests are network-free by default (fixtures are verbatim captured ECB responses)
 the live end-to-end check is opt-in:
 
 ```bash
-pytest -q                        # 20 passed, 1 skipped
+pytest -q                        # 49 passed, 1 skipped
 RUN_NETWORK_TESTS=1 pytest -m network
 ```
 
@@ -143,6 +193,14 @@ derivative of `t*y(t)`, and round-trip the discount factor.
   of the model, not an observed rate.
 - Rates are **percent with continuous compounding** — convert before comparing with
   annually-compounded or par quotes.
+- **The bond layer discounts off the AAA government curve only** — no credit spread, issuer
+  curve, or OIS/collateral (€STR) discounting. Prices are reference government valuations, not
+  what you would pay for a specific corporate/agency bond or a collateralised trade.
+- **DV01 is a single parallel shift of the whole curve.** It captures level/duration risk but
+  not curve-shape risk; key-rate (partial) durations that bump each tenor independently are the
+  natural next step (roadmap).
+- **YTM is quoted as an effective annual rate.** Convert before comparing with the curve's own
+  continuous-compounding spot/forward rates or with semi-annual street conventions.
 - History plots use the published `SR_*` series (spot rates), not re-evaluated parameters.
 - The ECB publishes around 12:00 CET on TARGET business days; on TARGET holidays that are
   weekdays the cron finds no new data and simply commits nothing.
@@ -153,6 +211,8 @@ derivative of `t*y(t)`, and round-trip the discount factor.
   NBER Working Paper No. 4871.
 - Nelson, C.R. and Siegel, A.F. (1987), *Parsimonious Modeling of Yield Curves*,
   Journal of Business 60(4), 473-489.
+- Fabozzi, F.J. (ed.) (2012), *The Handbook of Fixed Income Securities*, 8th ed., McGraw-Hill —
+  duration, modified duration, convexity, and DV01 definitions.
 - ECB, *Euro area yield curves — Technical notes*,
   https://www.ecb.europa.eu/stats/financial_markets_and_interest_rates/euro_area_yield_curves/html/index.en.html
 - ECB Data Portal API, https://data.ecb.europa.eu/help/api/data

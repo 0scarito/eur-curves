@@ -77,6 +77,10 @@ def main() -> int:
     curve_png = plots.plot_curve(params, REPO_ROOT / "charts" / "curve.png")
     print(f"wrote {curve_png.relative_to(REPO_ROOT)}")
 
+    # par-bond ladder DV01 / duration — needs only the fitted params (no network)
+    bonds_png = plots.plot_bond_ladder(params, REPO_ROOT / "charts" / "bonds.png")
+    print(f"wrote {bonds_png.relative_to(REPO_ROOT)}")
+
     start = params.date - dt.timedelta(days=HISTORY_DAYS)
     history = ecb.fetch_spot_history(["SR_2Y", "SR_10Y"], start=start)
     hist_png = plots.plot_history(history, REPO_ROOT / "charts" / "history.png")
