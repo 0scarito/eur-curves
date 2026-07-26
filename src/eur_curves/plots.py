@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .bonds import Bond, dv01, modified_duration, par_coupon  # noqa: E402
 from .ecb import CurveParams  # noqa: E402
+from .keyrate import DEFAULT_KEY_TENORS, key_rate_dv01  # noqa: E402
 from .svensson import forward_rate, spot_rate  # noqa: E402
 
-__all__ = ["plot_curve", "plot_history", "plot_bond_ladder"]
+__all__ = ["plot_curve", "plot_history", "plot_bond_ladder", "plot_key_rate_profile"]
 
 _SPOT_COLOR = "#1f6feb"
 _FWD_COLOR = "#d29922"
@@ -83,6 +84,40 @@ def plot_bond_ladder(params: CurveParams, path: str | Path, face: float = 100.0)
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax.legend(lines1 + lines2, labels1 + labels2, frameon=False, loc="upper left")
+    fig.tight_layout()
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path)
+    plt.close(fig)
+    return path
+
+
+def plot_key_rate_profile(params: CurveParams, path: str | Path, face: float = 100.0) -> Path:
+    """Key-rate DV01 profile of three par bonds (5y, 10y, 30y) off today's curve.
+
+    Grouped bars show where each bond's rate risk sits across the key tenors —
+    a 5y bond loads the 2y/5y buckets, a 30y loads the long end — even though
+    each bond's per-bucket DV01s sum to its own parallel DV01.
+    """
+    keys = list(DEFAULT_KEY_TENORS)
+    maturities = (5.0, 10.0, 30.0)
+    width = 0.8 / len(maturities)
+    x = np.arange(len(keys))
+
+    fig, ax = plt.subplots(figsize=(9, 5.5), dpi=150)
+    for j, mat in enumerate(maturities):
+        coupon = par_coupon(params, mat)
+        bond = Bond(face=face, annual_coupon_rate=coupon, maturity_years=mat)
+        kr = key_rate_dv01(bond, params)
+        ax.bar(x + j * width, [kr[k] for k in keys], width=width, label=f"{mat:g}y par bond")
+    ax.set_xlabel("Key tenor (years)")
+    ax.set_ylabel(f"Key-rate DV01 (per 1 bp, per {face:g} face)")
+    ax.set_title(f"Key-rate risk profile — {params.date.isoformat()} (ECB euro-area AAA curve)")
+    ax.set_xticks(x + width)
+    ax.set_xticklabels([f"{k:g}" for k in keys])
+    ax.grid(axis="y", alpha=0.3)
+    ax.legend(frameon=False)
     fig.tight_layout()
 
     path = Path(path)

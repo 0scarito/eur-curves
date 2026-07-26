@@ -81,6 +81,10 @@ def main() -> int:
     bonds_png = plots.plot_bond_ladder(params, REPO_ROOT / "charts" / "bonds.png")
     print(f"wrote {bonds_png.relative_to(REPO_ROOT)}")
 
+    # key-rate DV01 profile of 5y/10y/30y par bonds (no network)
+    kr_png = plots.plot_key_rate_profile(params, REPO_ROOT / "charts" / "keyrate.png")
+    print(f"wrote {kr_png.relative_to(REPO_ROOT)}")
+
     start = params.date - dt.timedelta(days=HISTORY_DAYS)
     history = ecb.fetch_spot_history(["SR_2Y", "SR_10Y"], start=start)
     hist_png = plots.plot_history(history, REPO_ROOT / "charts" / "history.png")

@@ -106,6 +106,40 @@ The 10Y par bond: coupon **3.1203%**, DV01 **0.0873** per 100 face, Macaulay dur
 effective-annual YTM comes back exactly equal to its coupon, and the 1Y point is a single
 cashflow so its convexity is exactly `1.0`.
 
+## Key-rate durations
+
+Since v0.3.0 the lab decomposes rate risk by **maturity bucket**, not just the single
+parallel-shift number. DV01 tells you what happens if the whole curve moves 1bp; it can't tell a
+10-year bullet apart from a 2s/30s barbell with the same DV01 but opposite reaction to a
+steepening. Key-rate durations (Ho 1992) fix that: perturb the spot curve with a **triangular
+bump** centred on each key tenor (2y/5y/10y/30y by default), ramping linearly to zero at the
+neighbours, and reprice.
+
+The bumps are a *partition of unity* — the tents sum to 1 at every maturity — so bumping every key
+at once is exactly a parallel shift, and therefore
+
+```
+sum of the key-rate DV01s  ==  the parallel DV01
+```
+
+to numerical precision. That reconciliation is the module's headline test (`parallel_dv01_from_keys`),
+and it's what makes the decomposition trustworthy rather than ad-hoc.
+
+![Key-rate risk profile](charts/keyrate.png)
+
+```python
+from eur_curves import Bond, fetch_params, key_rate_dv01, parallel_dv01_from_keys
+
+params = fetch_params("latest")
+bond = Bond(face=100.0, annual_coupon_rate=0.03, maturity_years=10.0)
+print(key_rate_dv01(bond, params))        # {2.0: ..., 5.0: ..., 10.0: <largest>, 30.0: ...}
+print(parallel_dv01_from_keys(bond, params))   # (sum of KR01s, parallel DV01) — they agree
+```
+
+The chart above (real ECB curve) shows each par bond loading its own bucket: the 5y bond sits in
+the 5y key, the 10y in the 10y, the 30y in the 30y — with small spillover to neighbours from the
+coupon stream.
+
 ## Install
 
 ```bash
@@ -196,9 +230,10 @@ derivative of `t*y(t)`, and round-trip the discount factor.
 - **The bond layer discounts off the AAA government curve only** — no credit spread, issuer
   curve, or OIS/collateral (€STR) discounting. Prices are reference government valuations, not
   what you would pay for a specific corporate/agency bond or a collateralised trade.
-- **DV01 is a single parallel shift of the whole curve.** It captures level/duration risk but
-  not curve-shape risk; key-rate (partial) durations that bump each tenor independently are the
-  natural next step (roadmap).
+- **DV01 is a single parallel shift of the whole curve.** It captures level/duration risk but not
+  curve-shape (steepener/flattener) risk. Key-rate durations (v0.3.0) decompose it by tenor bucket;
+  their granularity is only as fine as the chosen key set, and they are still first-order (they
+  don't capture cross-bucket convexity).
 - **YTM is quoted as an effective annual rate.** Convert before comparing with the curve's own
   continuous-compounding spot/forward rates or with semi-annual street conventions.
 - History plots use the published `SR_*` series (spot rates), not re-evaluated parameters.

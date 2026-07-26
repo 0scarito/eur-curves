@@ -19,9 +19,16 @@ from .ecb import (
     fetch_published_spots,
     fetch_spot_history,
 )
+from .keyrate import (
+    DEFAULT_KEY_TENORS,
+    key_rate_durations,
+    key_rate_dv01,
+    parallel_dv01_from_keys,
+    tent_weight,
+)
 from .svensson import discount_factor, forward_rate, spot_rate
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "CurveParams",
@@ -42,5 +49,10 @@ __all__ = [
     "macaulay_duration",
     "modified_duration",
     "convexity",
+    "DEFAULT_KEY_TENORS",
+    "key_rate_dv01",
+    "key_rate_durations",
+    "parallel_dv01_from_keys",
+    "tent_weight",
     "__version__",
 ]
