@@ -1,9 +1,6 @@
 name: refresh
 
 on:
-  schedule:
-    # ECB publishes the AAA curve around 12:00 CET on TARGET business days.
-    - cron: "30 13 * * 1-5"
   workflow_dispatch:
 
 permissions:
